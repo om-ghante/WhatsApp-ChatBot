@@ -1,6 +1,7 @@
 import express from 'express';
 import webhookRouter from './api/webhook.js';
-
+import dotenv from 'dotenv';
+dotenv.config();
 const app = express();
 app.use('/webhook', webhookRouter);
 

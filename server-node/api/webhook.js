@@ -5,7 +5,6 @@ import path from 'path';
 import os from 'os';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PDFDocument } from 'pdf-lib';
-
 const router = express.Router();
 
 // Environment variables
@@ -88,14 +87,19 @@ async function processPDF(pdfPath) {
   try {
     const pdfData = fs.readFileSync(pdfPath);
     const pdfDoc = await PDFDocument.load(pdfData);
-    const page = pdfDoc.getPage(0); // Process only first page
-    const image = await page.renderToJpeg();
-    const imagePath = path.join(os.tmpdir(), `temp_image_${Date.now()}.jpg`);
-    fs.writeFileSync(imagePath, image);
-    return imagePath;
+    
+    // Process only the first page to save resources
+    if (pdfDoc.getPageCount() > 0) {
+      const imagePath = path.join(os.tmpdir(), `temp_image_${Date.now()}.jpg`);
+      const page = pdfDoc.getPage(0);
+      const image = await page.renderToJpeg();
+      fs.writeFileSync(imagePath, image);
+      return [imagePath];
+    }
+    return [];
   } catch (error) {
     console.error('PDF processing error:', error);
-    return null;
+    return [];
   }
 }
 
