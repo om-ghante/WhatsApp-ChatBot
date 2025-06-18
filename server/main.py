@@ -4,6 +4,10 @@ import requests
 import os
 import fitz
 import re
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 wa_token = os.environ.get("WA_TOKEN")
 genai.configure(api_key=os.environ.get("GEN_API"))
