@@ -74,7 +74,7 @@ def remove(*file_paths):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    return "OmBot is running!"
+    return "OmGhante's Bot is running!"
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
