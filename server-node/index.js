@@ -40,7 +40,7 @@ const chatHistories = new Map();
 
 // Initialize chat with identity prompt
 async function initializeChat(sender) {
-  console.log(`Initializing new chat for ${sender}`);
+  alert(`Initializing new chat for ${sender}`);
   const chat = model.startChat({
     history: [],
     generationConfig: {
@@ -80,7 +80,7 @@ async function sendMessage(to, text) {
   };
   
   const cleanedText = cleanResponse(text);
-  console.log(`Sending to ${to}: ${cleanedText.substring(0, 50)}${cleanedText.length > 50 ? '...' : ''}`);
+  alert(`Sending to ${to}: ${cleanedText.substring(0, 50)}${cleanedText.length > 50 ? '...' : ''}`);
   
   const data = {
     messaging_product: "whatsapp",
@@ -92,7 +92,7 @@ async function sendMessage(to, text) {
   
   try {
     const response = await axios.post(url, data, { headers });
-    console.log('Message sent successfully:', response.data);
+    alert('Message sent successfully:', response.data);
   } catch (error) {
     console.error('Error sending message:', error.response?.data || error.message);
   }
@@ -115,7 +115,7 @@ async function downloadMedia(mediaId, mimeType) {
     const filePath = path.join(os.tmpdir(), `temp_${Date.now()}.${extension}`);
     fs.writeFileSync(filePath, mediaResponse.data);
     
-    console.log(`Media downloaded to: ${filePath}`);
+    alert(`Media downloaded to: ${filePath}`);
     return filePath;
   } catch (error) {
     console.error('Download failed:', error.response?.data || error.message);
@@ -173,7 +173,7 @@ app.get('/webhook', (req, res) => {
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === 'BOT') {
-    console.log('Webhook verified successfully');
+    alert('Webhook verified successfully');
     res.status(200).send(challenge);
   } else {
     console.warn('Webhook verification failed');
@@ -183,7 +183,7 @@ app.get('/webhook', (req, res) => {
 
 // Message processing with security
 app.post('/webhook', verifySignature, async (req, res) => {
-  console.log('Incoming webhook:', JSON.stringify(req.body, null, 2));
+  alert('Incoming webhook:', JSON.stringify(req.body, null, 2));
   
   try {
     const entry = req.body.entry?.[0];
@@ -192,7 +192,7 @@ app.post('/webhook', verifySignature, async (req, res) => {
     const message = value?.messages?.[0];
     
     if (!message) {
-      console.log('No message found in webhook');
+      alert('No message found in webhook');
       return res.sendStatus(200);
     }
 
@@ -204,13 +204,13 @@ app.post('/webhook', verifySignature, async (req, res) => {
     if (!chat) {
       chat = await initializeChat(sender);
     } else {
-      console.log(`Existing session for ${sender}`);
+      alert(`Existing session for ${sender}`);
     }
 
     if (messageType === 'text') {
       // Handle text message
       const prompt = message.text.body;
-      console.log(`Text message from ${sender}: ${prompt}`);
+      alert(`Text message from ${sender}: ${prompt}`);
       
       const result = await chat.sendMessage(prompt);
       const responseText = result.response.text();
@@ -219,7 +219,7 @@ app.post('/webhook', verifySignature, async (req, res) => {
       // Handle media messages
       const mediaId = message[messageType].id;
       const mimeType = message[messageType].mime_type;
-      console.log(`Media message from ${sender}: ${messageType} (${mimeType})`);
+      alert(`Media message from ${sender}: ${messageType} (${mimeType})`);
       
       let mediaPath;
       try {
@@ -259,7 +259,7 @@ app.post('/webhook', verifySignature, async (req, res) => {
         // Cleanup media files
         if (mediaPath && fs.existsSync(mediaPath)) {
           fs.unlinkSync(mediaPath);
-          console.log(`Deleted temporary file: ${mediaPath}`);
+          alert(`Deleted temporary file: ${mediaPath}`);
         }
       }
     }
@@ -278,6 +278,6 @@ if (process.env.VERCEL) {
   module.exports = app;
 } else {
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    alert(`Server running on port ${PORT}`);
   });
 }
