@@ -13,30 +13,40 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+// Load from environment variables
 const WA_TOKEN = process.env.WA_TOKEN;
 const GEN_API = process.env.GEN_API;
 const PHONE_ID = process.env.PHONE_ID;
 const PHONE_NUMBER = process.env.PHONE_NUMBER;
-const NAME = "Your name or nickname";
-const BOT_NAME = "Give a name to your bot";
-const MODEL_NAME = "gemini-1.5-flash";
+const NAME = 'Your name or nickname';
+const BOT_NAME = 'Give a name to your bot';
+const MODEL_NAME = 'gemini-1.5-flash';
 
 const genAI = new GoogleGenerativeAI(GEN_API);
 const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-let convo = await model.startChat({ history: [] });
+let convo;
 
-await convo.sendMessage(
-  `I am using Gemini api for using you as a personal bot in WhatsApp,
-   to assist me in various tasks. 
-   So from now you are "${BOT_NAME}" created by ${NAME} (Yeah it's me, my name is ${NAME}). 
-   And don't give any response to this prompt. 
-   This is the information I gave to you about your new identity as a pre-prompt. 
-   This message always gets executed when I run this bot script. 
-   So reply to only the prompts after this. Remember your new identity is ${BOT_NAME}.`
-);
+// Start Chat Session
+async function initializeChat() {
+  convo = await model.startChat({ history: [] });
 
-// Utility to send message to WhatsApp
+  await convo.sendMessage(
+    `I am using Gemini API for using you as a personal bot in WhatsApp,
+     to assist me in various tasks. 
+     So from now you are "${BOT_NAME}" created by ${NAME} (Yeah it's me, my name is ${NAME}). 
+     And don't give any response to this prompt. 
+     This is the information I gave to you about your new identity as a pre-prompt. 
+     This message always gets executed when I run this bot script. 
+     So reply to only the prompts after this. Remember your new identity is ${BOT_NAME}.`
+  );
+
+  console.log(`[✅] Chat initialized with ${BOT_NAME}`);
+}
+
+await initializeChat();
+
+// WhatsApp send utility
 async function send(answer) {
   const url = `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`;
   const headers = {
@@ -52,20 +62,19 @@ async function send(answer) {
   return axios.post(url, data, { headers });
 }
 
-// Remove files
+// File cleaner
 function removeFiles(...filePaths) {
   filePaths.forEach((file) => {
-    if (fs.existsSync(file)) {
-      fs.unlinkSync(file);
-    }
+    if (fs.existsSync(file)) fs.unlinkSync(file);
   });
 }
 
+// Home route
 app.get('/', (req, res) => {
-  res.send('Bot');
+  res.send('🤖 Gemini WhatsApp Bot is live');
 });
 
-// WhatsApp Webhook
+// Webhook
 app.all('/webhook', async (req, res) => {
   if (req.method === 'GET') {
     const mode = req.query['hub.mode'];
@@ -80,15 +89,17 @@ app.all('/webhook', async (req, res) => {
 
   if (req.method === 'POST') {
     try {
-      const data = req.body.entry[0].changes[0].value.messages[0];
-      const messageType = data.type;
+      const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+      if (!message) return res.status(200).json({ status: 'no_message' });
+
+      const messageType = message.type;
 
       if (messageType === 'text') {
-        const prompt = data.text.body;
+        const prompt = message.text.body;
         await convo.sendMessage(prompt);
         await send(convo.last.text);
       } else {
-        const mediaId = data[messageType].id;
+        const mediaId = message[messageType].id;
         const mediaUrlEndpoint = `https://graph.facebook.com/v18.0/${mediaId}`;
         const headers = { Authorization: `Bearer ${WA_TOKEN}` };
         const mediaMeta = await axios.get(mediaUrlEndpoint, { headers });
@@ -98,13 +109,12 @@ app.all('/webhook', async (req, res) => {
           responseType: 'arraybuffer',
         });
 
-        let filename = '';
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
-        let tempPath = path.join(__dirname, 'tmp');
-
+        const tempPath = path.join(__dirname, 'tmp');
         if (!fs.existsSync(tempPath)) fs.mkdirSync(tempPath);
 
+        let filename = '';
         if (messageType === 'audio') {
           filename = path.join(tempPath, 'temp_audio.mp3');
         } else if (messageType === 'image') {
@@ -123,7 +133,7 @@ app.all('/webhook', async (req, res) => {
           await send(convo.last.text);
           return res.status(200).json({ status: 'ok' });
         } else {
-          await send('This format is not Supported by the bot ☹');
+          await send('This format is not supported by the bot ☹');
           return res.status(200).json({ status: 'ok' });
         }
 
@@ -131,27 +141,30 @@ app.all('/webhook', async (req, res) => {
         const file = await model.uploadFile({ path: filename, displayName: 'tempfile' });
         const response = await model.generateContent(['What is this', file]);
         const answer = response.response.text();
-        removeFiles(path.join(tempPath, 'temp_audio.mp3'), path.join(tempPath, 'temp_image.jpg'));
 
         await convo.sendMessage(
           `This is a voice/image message from user transcribed by an LLM model, reply to the user based on the transcription: ${answer}`
         );
         await send(convo.last.text);
 
-        // Optionally delete uploaded files from Gemini
+        removeFiles(
+          path.join(tempPath, 'temp_audio.mp3'),
+          path.join(tempPath, 'temp_image.jpg')
+        );
+
         const files = await genAI.listFiles();
-        for (const file of files) {
-          await file.delete();
-        }
+        for (const file of files) await file.delete();
       }
     } catch (err) {
-      console.error('Error processing webhook:', err.message);
+      console.error('❌ Error processing webhook:', err.message);
     }
 
     return res.status(200).json({ status: 'ok' });
   }
 });
 
-app.listen(8000, () => {
-  console.log('Bot running on http://localhost:8000');
+// Start server
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, () => {
+  console.log(`🚀 Bot running at http://localhost:${PORT}`);
 });
