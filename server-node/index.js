@@ -4,17 +4,18 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { PDFDocument } = require('pdf-lib');
 const app = express();
 
 // Environment variables
 const WA_TOKEN = process.env.WA_TOKEN;
 const GEN_API = process.env.GEN_API;
 const PHONE_ID = process.env.PHONE_ID;
-const NAME = "Om"; // Your name
-const BOT_NAME = "OmBot"; // Bot's name
+const NAME = "Om";
+const BOT_NAME = "OmBot";
 const MODEL_NAME = "gemini-1.5-flash-latest";
+const APP_SECRET = process.env.APP_SECRET || "DEFAULT_SECRET";
 
 // Gemini configuration
 const genAI = new GoogleGenerativeAI(GEN_API);
@@ -39,6 +40,7 @@ const chatHistories = new Map();
 
 // Initialize chat with identity prompt
 async function initializeChat(sender) {
+  console.log(`Initializing new chat for ${sender}`);
   const chat = model.startChat({
     history: [],
     generationConfig: {
@@ -76,15 +78,21 @@ async function sendMessage(to, text) {
     'Authorization': `Bearer ${WA_TOKEN}`,
     'Content-Type': 'application/json'
   };
+  
+  const cleanedText = cleanResponse(text);
+  console.log(`Sending to ${to}: ${cleanedText.substring(0, 50)}${cleanedText.length > 50 ? '...' : ''}`);
+  
   const data = {
     messaging_product: "whatsapp",
+    recipient_type: "individual",
     to: to,
     type: "text",
-    text: { body: cleanResponse(text) }
+    text: { body: cleanedText }
   };
   
   try {
-    await axios.post(url, data, { headers });
+    const response = await axios.post(url, data, { headers });
+    console.log('Message sent successfully:', response.data);
   } catch (error) {
     console.error('Error sending message:', error.response?.data || error.message);
   }
@@ -92,58 +100,70 @@ async function sendMessage(to, text) {
 
 // Download media file
 async function downloadMedia(mediaId, mimeType) {
-  const url = `https://graph.facebook.com/v18.0/${mediaId}/`;
+  const url = `https://graph.facebook.com/v18.0/${mediaId}`;
   const headers = { 'Authorization': `Bearer ${WA_TOKEN}` };
   
-  const response = await axios.get(url, { headers });
-  const mediaUrl = response.data.url;
-  const mediaResponse = await axios.get(mediaUrl, { 
-    headers,
-    responseType: 'arraybuffer'
-  });
+  try {
+    const response = await axios.get(url, { headers });
+    const mediaUrl = response.data.url;
+    const mediaResponse = await axios.get(mediaUrl, { 
+      headers,
+      responseType: 'arraybuffer'
+    });
 
-  const extension = mimeType.split('/')[1];
-  const filePath = path.join(os.tmpdir(), `temp_${Date.now()}.${extension}`);
-  fs.writeFileSync(filePath, mediaResponse.data);
-  
-  return filePath;
-}
-
-// Convert PDF to images
-async function pdfToImages(pdfPath) {
-  const pdfData = fs.readFileSync(pdfPath);
-  const pdfDoc = await PDFDocument.load(pdfData);
-  const imagePaths = [];
-
-  for (let i = 0; i < pdfDoc.getPageCount(); i++) {
-    const imagePath = path.join(os.tmpdir(), `temp_image_${Date.now()}_${i}.jpg`);
-    const page = pdfDoc.getPage(i);
-    const image = await page.renderToJpeg();
-    fs.writeFileSync(imagePath, image);
-    imagePaths.push(imagePath);
+    const extension = mimeType.split('/')[1];
+    const filePath = path.join(os.tmpdir(), `temp_${Date.now()}.${extension}`);
+    fs.writeFileSync(filePath, mediaResponse.data);
+    
+    console.log(`Media downloaded to: ${filePath}`);
+    return filePath;
+  } catch (error) {
+    console.error('Download failed:', error.response?.data || error.message);
+    throw new Error('Media download failed');
   }
-
-  return imagePaths;
 }
 
 // Upload file to Gemini
-async function uploadFileToGemini(filePath) {
-  const fileData = {
-    inlineData: {
-      data: Buffer.from(fs.readFileSync(filePath)).toString('base64'),
-      mimeType: path.extname(filePath) === '.pdf' ? 
-        'application/pdf' : 
-        `image/${path.extname(filePath).slice(1)}`
-    }
-  };
-  return fileData;
+async function uploadFileToGemini(filePath, mimeType) {
+  try {
+    const fileBuffer = fs.readFileSync(filePath);
+    return {
+      inlineData: {
+        data: fileBuffer.toString('base64'),
+        mimeType: mimeType
+      }
+    };
+  } catch (error) {
+    console.error('File upload failed:', error);
+    throw new Error('Failed to process file');
+  }
+}
+
+// Security verification middleware
+function verifySignature(req, res, next) {
+  const signature = req.headers['x-hub-signature-256'];
+  if (!signature) {
+    console.warn('Missing signature header');
+    return res.sendStatus(403);
+  }
+  
+  const hmac = crypto.createHmac('sha256', APP_SECRET);
+  const rawBody = JSON.stringify(req.body);
+  const digest = 'sha256=' + hmac.update(rawBody).digest('hex');
+  
+  if (signature !== digest) {
+    console.warn(`Invalid signature: ${signature} !== ${digest}`);
+    return res.sendStatus(403);
+  }
+  
+  next();
 }
 
 app.use(express.json());
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.send("OmGhante's Bot is running!");
+  res.send("Om's WhatsApp Bot is running!");
 });
 
 // Webhook verification
@@ -153,32 +173,45 @@ app.get('/webhook', (req, res) => {
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === 'BOT') {
+    console.log('Webhook verified successfully');
     res.status(200).send(challenge);
   } else {
+    console.warn('Webhook verification failed');
     res.sendStatus(403);
   }
 });
 
-// Message processing
-app.post('/webhook', async (req, res) => {
+// Message processing with security
+app.post('/webhook', verifySignature, async (req, res) => {
+  console.log('Incoming webhook:', JSON.stringify(req.body, null, 2));
+  
   try {
     const entry = req.body.entry?.[0];
     const changes = entry?.changes?.[0];
     const value = changes?.value;
     const message = value?.messages?.[0];
     
-    if (!message) return res.sendStatus(200);
+    if (!message) {
+      console.log('No message found in webhook');
+      return res.sendStatus(200);
+    }
 
     const sender = message.from;
     const messageType = message.type;
 
     // Get or initialize chat session
     let chat = chatHistories.get(sender);
-    if (!chat) chat = await initializeChat(sender);
+    if (!chat) {
+      chat = await initializeChat(sender);
+    } else {
+      console.log(`Existing session for ${sender}`);
+    }
 
     if (messageType === 'text') {
       // Handle text message
       const prompt = message.text.body;
+      console.log(`Text message from ${sender}: ${prompt}`);
+      
       const result = await chat.sendMessage(prompt);
       const responseText = result.response.text();
       await sendMessage(sender, responseText);
@@ -186,44 +219,48 @@ app.post('/webhook', async (req, res) => {
       // Handle media messages
       const mediaId = message[messageType].id;
       const mimeType = message[messageType].mime_type;
+      console.log(`Media message from ${sender}: ${messageType} (${mimeType})`);
+      
       let mediaPath;
-
       try {
         mediaPath = await downloadMedia(mediaId, mimeType);
         
         if (messageType === 'document' && mimeType === 'application/pdf') {
-          // Process PDF document
-          const imagePaths = await pdfToImages(mediaPath);
-          
-          for (const imagePath of imagePaths) {
-            const fileData = await uploadFileToGemini(imagePath);
-            const prompt = "What is this?";
-            const result = await model.generateContent([prompt, fileData]);
-            const responseText = result.response.text();
-            
-            await chat.sendMessage(
-              `This is an image-based PDF. Respond to the user based on this: ${responseText}`
-            );
-            await sendMessage(sender, chat.lastMessage);
-          }
-          
-          // Cleanup
-          imagePaths.forEach(p => fs.existsSync(p) && fs.unlinkSync(p));
-        } else {
-          // Process other media types
-          const fileData = await uploadFileToGemini(mediaPath);
-          const prompt = "Please describe this file:";
-          const result = await model.generateContent([prompt, fileData]);
+          // Process PDF directly
+          const fileData = await uploadFileToGemini(mediaPath, 'application/pdf');
+          const result = await model.generateContent([
+            "Analyze this PDF document and provide a concise summary:",
+            fileData
+          ]);
           const responseText = result.response.text();
-          
           await chat.sendMessage(
-            `This was received from the user. Respond to it: ${responseText}`
+            `User sent a PDF document. Summary: ${responseText}`
           );
-          await sendMessage(sender, chat.lastMessage);
+          await sendMessage(sender, `📄 PDF Summary:\n${responseText}`);
+        } else if (messageType === 'image') {
+          // Process images
+          const fileData = await uploadFileToGemini(mediaPath, mimeType);
+          const result = await model.generateContent([
+            "Describe this image in detail:",
+            fileData
+          ]);
+          const responseText = result.response.text();
+          await chat.sendMessage(
+            `User sent an image. Description: ${responseText}`
+          );
+          await sendMessage(sender, `🖼️ Image Description:\n${responseText}`);
+        } else {
+          await sendMessage(sender, "⚠️ Unsupported file type. I can only process images and PDF documents.");
         }
+      } catch (error) {
+        console.error('Media processing error:', error);
+        await sendMessage(sender, "❌ Error processing your file. Please try again.");
       } finally {
         // Cleanup media files
-        if (mediaPath && fs.existsSync(mediaPath)) fs.unlinkSync(mediaPath);
+        if (mediaPath && fs.existsSync(mediaPath)) {
+          fs.unlinkSync(mediaPath);
+          console.log(`Deleted temporary file: ${mediaPath}`);
+        }
       }
     }
     
@@ -234,8 +271,13 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// Start server
+// Vercel serverless function handler
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+
+if (process.env.VERCEL) {
+  module.exports = app;
+} else {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
