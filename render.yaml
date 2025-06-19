@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: whatsapp-gemini-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: WA_TOKEN
+        value: YOUR_WA_TOKEN
+      - key: GEN_API
+        value: YOUR_GEMINI_API_KEY
+      - key: PHONE_ID
+        value: YOUR_PHONE_ID
+      - key: PHONE_NUMBER
+        value: YOUR_PHONE_NUMBER
