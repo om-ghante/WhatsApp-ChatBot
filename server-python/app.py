@@ -44,7 +44,7 @@ convo.send_message(f'''I am using Gemini api for using you as a personal bot in 
 				   So reply to only the prompts after this. Remeber your new identity is {bot_name}.''')
 
 def send(answer):
-    url=f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+    url=f"https://https://graph.facebook.com/v22.0/{phone_id}/messages"
     headers={
         'Authorization': f'Bearer {wa_token}',
         'Content-Type': 'application/json'
@@ -87,7 +87,7 @@ def webhook():
                 convo.send_message(prompt)
                 send(convo.last.text)
             else:
-                media_url_endpoint = f'https://graph.facebook.com/v18.0/{data[data["type"]]["id"]}/'
+                media_url_endpoint = f'https://graph.facebook.com/v22.0/{data[data["type"]]["id"]}/'
                 headers = {'Authorization': f'Bearer {wa_token}'}
                 media_response = requests.get(media_url_endpoint, headers=headers)
                 media_url = media_response.json()["url"]
