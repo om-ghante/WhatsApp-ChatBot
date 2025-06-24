@@ -170,7 +170,6 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// NEW: Simplified hello_world template endpoint
 app.post('/schedule-template', async (req, res) => {
   try {
     const { phone, time } = req.body;
@@ -180,7 +179,7 @@ app.post('/schedule-template', async (req, res) => {
     }
 
     const now = new Date();
-    const scheduledTime = new Date(time); // ISO string or timestamp
+    const scheduledTime = new Date(time);
     const delay = scheduledTime - now;
 
     if (delay < 0) {
@@ -188,23 +187,23 @@ app.post('/schedule-template', async (req, res) => {
     }
 
     setTimeout(async () => {
-      const url = `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`;
-      const headers = {
-        Authorization: `Bearer ${WA_TOKEN}`,
-        'Content-Type': 'application/json'
-      };
-
-      const data = {
-        messaging_product: "whatsapp",
-        to: phone,
-        type: "template",
-        template: {
-          name: "hello_world", // Your approved template name
-          language: { code: "en_US" }
-        }
-      };
-
       try {
+        const url = `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`;
+        const headers = {
+          Authorization: `Bearer ${WA_TOKEN}`,
+          'Content-Type': 'application/json'
+        };
+
+        const data = {
+          messaging_product: "whatsapp",
+          to: phone,
+          type: "template",
+          template: {
+            name: "hello_world",
+            language: { code: "en_US" }
+          }
+        };
+
         await axios.post(url, data, { headers });
         console.log(`✅ Template sent to ${phone} at ${new Date().toLocaleString()}`);
       } catch (error) {
@@ -212,7 +211,10 @@ app.post('/schedule-template', async (req, res) => {
       }
     }, delay);
 
-    res.json({ success: true, message: `Template message scheduled for ${new Date(scheduledTime).toLocaleString()}` });
+    res.json({ 
+      success: true, 
+      message: `Template message scheduled for ${scheduledTime.toLocaleString()}` 
+    });
   } catch (error) {
     console.error('❌ Schedule template error:', error);
     res.status(500).json({ error: 'Internal server error' });

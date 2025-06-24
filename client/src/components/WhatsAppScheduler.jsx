@@ -3,10 +3,10 @@ import { useState } from 'react';
 export default function WhatsAppScheduler() {
   const [form, setForm] = useState({
     phone: '', 
-    scheduledTime: ''
+    time: ''
   });
 
-  const [uploading, setUploading] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
   const [error, setError] = useState('');
   
   const handleFormChange = (e) => {
@@ -15,26 +15,23 @@ export default function WhatsAppScheduler() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setUploading(true);
+    setScheduling(true);
     setError('');
 
     try {
       // Validate required fields
       if (!form.phone) throw new Error('Phone number is required');
-      if (!form.scheduledTime) throw new Error('Scheduled time is required');
+      if (!form.time) throw new Error('Scheduled time is required');
       
-      // Format phone number (ensure it starts with +)
+      // Format phone number
       const formattedPhone = form.phone.startsWith('+') ? 
         form.phone : 
         `+${form.phone}`;
 
-      // Convert to ISO format for backend
-      const scheduledTimeISO = new Date(form.scheduledTime).toISOString();
-
       // Prepare payload
       const payload = {
         phone: formattedPhone,
-        scheduledTime: scheduledTimeISO
+        time: new Date(form.time).toISOString()
       };
 
       // Send to backend
@@ -50,13 +47,13 @@ export default function WhatsAppScheduler() {
         throw new Error(responseData.error || `Request failed with status ${response.status}`);
       }
 
-      alert('Message scheduled successfully!');
-      setForm({ phone: '', scheduledTime: '' }); // Reset form
+      alert(`Message scheduled for ${new Date(form.time).toLocaleString()}!`);
+      setForm({ phone: '', time: '' }); // Reset form
     } catch (err) {
       console.error('Scheduling error:', err);
       setError(err.message || 'Failed to schedule message');
     } finally {
-      setUploading(false);
+      setScheduling(false);
     }
   };
 
@@ -91,8 +88,8 @@ export default function WhatsAppScheduler() {
           </label>
           <input
             type="datetime-local"
-            name="scheduledTime"
-            value={form.scheduledTime}
+            name="time"
+            value={form.time}
             onChange={handleFormChange}
             className="w-full p-2 border rounded"
             required
@@ -101,20 +98,20 @@ export default function WhatsAppScheduler() {
 
         <button
           type="submit"
-          disabled={uploading}
+          disabled={scheduling}
           className={`w-full py-2 px-4 rounded text-white ${
-            uploading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+            scheduling ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          {uploading ? 'Scheduling...' : 'Schedule Hello World Message'}
+          {scheduling ? 'Scheduling...' : 'Schedule Hello World Message'}
         </button>
       </form>
       
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h3 className="font-semibold text-blue-800">About This Message</h3>
+        <h3 className="font-semibold text-blue-800">Important Note</h3>
         <p className="mt-2 text-blue-700">
-          This will send a simple "hello_world" WhatsApp template message at the scheduled time.
-          No additional parameters or images will be included.
+          This scheduling feature works best on always-on servers. For Vercel deployments, 
+          consider using a database with cron jobs for reliable scheduling.
         </p>
       </div>
     </div>
