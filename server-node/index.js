@@ -10,6 +10,14 @@ app.use(cors());
 // Parse JSON bodies
 app.use(express.json());
 
+// Handle OPTIONS preflight requests
+app.options('/api/message', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(204);
+});
+
 app.post('/api/message', (req, res) => {
   console.log('Received from frontend:', req.body.message);
   res.json({ response: 'hello' });

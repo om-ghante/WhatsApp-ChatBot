@@ -48,7 +48,7 @@ export default function WhatsAppScheduler() {
 
       try {
         // Using fetch instead of axios with CORS-compatible logic
-        const response = await fetch('https://whats-app-chat-bot-server.vercel.app/sendtemplate', {
+        const response = await fetch('http://localhost:8000/sendtemplate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
