@@ -9,8 +9,8 @@ const app = express();
 
 // Configuration (only GEN_API remains from env)
 const GEN_API = process.env.GEN_API;
-const NAME = process.env.OWNER_NAME || "Your name";
-const BOT_NAME = process.env.BOT_NAME || "AI Assistant";
+const NAME = process.env.OWNER_NAME || "Om Ghante";
+const BOT_NAME = process.env.BOT_NAME || "Om Ghante's ChatBot";
 const MODEL_NAME = process.env.MODEL_NAME || "gemini-1.5-flash-latest";
 
 const genAI = new GoogleGenerativeAI(GEN_API);
