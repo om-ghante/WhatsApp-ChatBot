@@ -11,7 +11,6 @@ const PORT = process.env.PORT || 3000;
 
 // ✅ Allowed origins
 const allowedOrigins = [
-  'http://localhost:5173',
   'https://whats-app-chat-bot-44ud.vercel.app' // your frontend
 ];
 
