@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export default function WhatsAppScheduler() {
   const [config, setConfig] = useState({
     WA_TOKEN: '',
     PHONE_ID: '',
+    CLOUD_NAME: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '',
+    UPLOAD_PRESET: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '',
   });
 
   const [form, setForm] = useState({
@@ -13,9 +15,17 @@ export default function WhatsAppScheduler() {
     greeting: 'Good Morning',
     time: '',
     image: null,
+    imageUrl: '',
   });
 
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  
   const greetings = ['Good Morning', 'Good Afternoon', 'Good Evening'];
+  const daysOfWeek = [
+    'Monday', 'Tuesday', 'Wednesday', 
+    'Thursday', 'Friday', 'Saturday', 'Sunday'
+  ];
 
   const handleConfigChange = (e) => {
     setConfig({ ...config, [e.target.name]: e.target.value });
@@ -29,47 +39,59 @@ export default function WhatsAppScheduler() {
     }
   };
 
+  const uploadImageToCloudinary = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', config.UPLOAD_PRESET);
+    formData.append('folder', 'whatsapp_schedule');
+
+    try {
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${config.CLOUD_NAME}/image/upload`,
+        { method: 'POST', body: formData }
+      );
+
+      if (!response.ok) throw new Error('Upload failed');
+      return (await response.json()).secure_url;
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setUploading(true);
+    setError('');
 
     if (!form.image) {
-      alert('Please select an image.');
+      setError('Please select an image');
+      setUploading(false);
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const imageBase64 = reader.result.split(',')[1];
-      const payload = {
-        ...form,
-        image: imageBase64,
-        ...config,
-      };
+    try {
+      const imageUrl = await uploadImageToCloudinary(form.image);
+      
+      const response = await fetch('https://whats-app-chat-bot-server.vercel.app/sendtemplate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, imageUrl, ...config }),
+      });
 
-      try {
-        // Using fetch instead of axios with CORS-compatible logic
-        const response = await fetch('http://localhost:8000/sendtemplate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        alert('Scheduled message submitted!');
-        console.log('Backend response:', data);
-      } catch (error) {
-        console.error('Error scheduling message:', error);
-        alert('Failed to schedule. Check console.');
+      if (!response.ok) {
+        throw new Error(`Failed to schedule: ${response.statusText}`);
       }
-    };
 
-    reader.readAsDataURL(form.image);
+      const data = await response.json();
+      alert('Message scheduled successfully!');
+      console.log('Server response:', data);
+    } catch (err) {
+      console.error('Error:', err);
+      setError(err.message || 'Failed to schedule message');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -79,18 +101,23 @@ export default function WhatsAppScheduler() {
         type="text"
         name="WA_TOKEN"
         placeholder="WA_TOKEN"
+        value={config.WA_TOKEN}
         onChange={handleConfigChange}
         className="w-full mb-2 p-2 border rounded"
+        required
       />
       <input
         type="text"
         name="PHONE_ID"
         placeholder="PHONE_ID"
+        value={config.PHONE_ID}
         onChange={handleConfigChange}
         className="w-full mb-4 p-2 border rounded"
+        required
       />
 
       <h2 className="text-xl font-bold mb-4">Schedule WhatsApp Message</h2>
+      {error && <div className="text-red-500 mb-4">{error}</div>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"
@@ -99,30 +126,36 @@ export default function WhatsAppScheduler() {
           value={form.name}
           onChange={handleFormChange}
           className="w-full p-2 border rounded"
+          required
         />
         <input
-          type="text"
+          type="tel"
           name="phone"
           placeholder="Phone Number (with country code)"
           value={form.phone}
           onChange={handleFormChange}
           className="w-full p-2 border rounded"
+          required
         />
-        <input
-          type="text"
+        <select
           name="dayOfWeek"
-          placeholder="Day of Week (e.g., Monday)"
           value={form.dayOfWeek}
           onChange={handleFormChange}
           className="w-full p-2 border rounded"
-        />
+          required
+        >
+          <option value="">Select Day</option>
+          {daysOfWeek.map(day => (
+            <option key={day} value={day}>{day}</option>
+          ))}
+        </select>
         <select
           name="greeting"
           value={form.greeting}
           onChange={handleFormChange}
           className="w-full p-2 border rounded"
         >
-          {greetings.map((g) => (
+          {greetings.map(g => (
             <option key={g} value={g}>{g}</option>
           ))}
         </select>
@@ -132,6 +165,7 @@ export default function WhatsAppScheduler() {
           value={form.time}
           onChange={handleFormChange}
           className="w-full p-2 border rounded"
+          required
         />
         <input
           type="file"
@@ -139,12 +173,16 @@ export default function WhatsAppScheduler() {
           accept="image/*"
           onChange={handleFormChange}
           className="w-full p-2 border rounded"
+          required
         />
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={uploading}
+          className={`w-full py-2 px-4 rounded text-white ${
+            uploading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
         >
-          Schedule Message
+          {uploading ? 'Scheduling...' : 'Schedule Message'}
         </button>
       </form>
     </div>
