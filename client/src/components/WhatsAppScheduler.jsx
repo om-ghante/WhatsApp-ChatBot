@@ -17,6 +17,7 @@ export default function WhatsAppScheduler() {
   });
 
   const greetings = ['Good Morning', 'Good Afternoon', 'Good Evening'];
+  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   const handleConfigChange = (e) => {
     setConfig({ ...config, [e.target.name]: e.target.value });
@@ -94,14 +95,17 @@ export default function WhatsAppScheduler() {
           onChange={handleFormChange}
           className="w-full p-2 border rounded"
         />
-        <input
-          type="text"
+        <select
           name="dayOfWeek"
-          placeholder="Day of Week (e.g., Monday)"
           value={form.dayOfWeek}
           onChange={handleFormChange}
           className="w-full p-2 border rounded"
-        />
+        >
+          <option value="" disabled>Select Day of Week</option>
+          {daysOfWeek.map((day) => (
+            <option key={day} value={day}>{day}</option>
+          ))}
+        </select>
         <select
           name="greeting"
           value={form.greeting}

@@ -1,13 +1,16 @@
-// index.js
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const pdf = require('pdf-parse');
 const { createCanvas, loadImage } = require('canvas');
-const app = express();
 
-// Configuration (only GEN_API remains from env)
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
 const GEN_API = process.env.GEN_API;
 const NAME = process.env.OWNER_NAME || "Om Ghante";
 const BOT_NAME = process.env.BOT_NAME || "Om Ghante's ChatBot";
@@ -16,20 +19,16 @@ const MODEL_NAME = process.env.MODEL_NAME || "gemini-1.5-flash-latest";
 const genAI = new GoogleGenerativeAI(GEN_API);
 const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-// Global conversation history
 let conversationHistory = [];
 const MAX_HISTORY = 20;
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
-// Detect language and set response language
+// Language detection
 function detectLanguage(text) {
   const marathiChars = /[\u0900-\u097F]/;
   return marathiChars.test(text) ? 'marathi' : 'english';
 }
 
-// Process different media types
+// Media processor
 async function processMedia(buffer, mimeType) {
   try {
     if (mimeType === 'application/pdf') {
@@ -68,9 +67,10 @@ async function processMedia(buffer, mimeType) {
   }
 }
 
-// Webhook endpoints
+// Health check
 app.get('/', (req, res) => res.send('WhatsApp AI Bot'));
 
+// WhatsApp webhook (unchanged)
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -83,6 +83,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
+// WhatsApp message handler
 app.post('/webhook', async (req, res) => {
   try {
     const entry = req.body.entry?.[0];
@@ -92,8 +93,8 @@ app.post('/webhook', async (req, res) => {
 
     if (!message) return res.json({ status: "ok" });
 
-    const PHONE_NUMBER = metadata.phone_number_id;
-    const WA_TOKEN = req.body.wa_token;
+    const PHONE_NUMBER_ID = metadata.phone_number_id;
+    const WA_TOKEN = process.env.WA_TOKEN;
 
     let userInput = '';
     const userLanguage = detectLanguage(message.text?.body || '');
@@ -147,7 +148,7 @@ app.post('/webhook', async (req, res) => {
 
     conversationHistory.push({ role: "model", parts: [{ text }] });
 
-    const sendURL = `https://graph.facebook.com/v18.0/${PHONE_NUMBER}/messages`;
+    const sendURL = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
     const headers = {
       'Authorization': `Bearer ${WA_TOKEN}`,
       'Content-Type': 'application/json'
@@ -167,7 +168,7 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// Send template message endpoint
+// Send template message API for React frontend
 app.post('/send-template', async (req, res) => {
   const { WA_TOKEN, PHONE_ID, name, phone, dayOfWeek, greeting, image } = req.body;
 
