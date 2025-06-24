@@ -1,35 +1,20 @@
 import { useState } from 'react';
 
 export default function WhatsAppScheduler() {
-  const [config, setConfig] = useState({
-    WA_TOKEN: '',
-    PHONE_ID: '',
-    CLOUD_NAME: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '',
-    UPLOAD_PRESET: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '',
-  });
-
   const [form, setForm] = useState({
     name: '',
-    phone: '',
+    phone: '', 
     dayOfWeek: '',
     greeting: 'Good Morning',
     time: '',
     image: null,
-    imageUrl: '',
   });
 
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   
   const greetings = ['Good Morning', 'Good Afternoon', 'Good Evening'];
-  const daysOfWeek = [
-    'Monday', 'Tuesday', 'Wednesday', 
-    'Thursday', 'Friday', 'Saturday', 'Sunday'
-  ];
-
-  const handleConfigChange = (e) => {
-    setConfig({ ...config, [e.target.name]: e.target.value });
-  };
+  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   const handleFormChange = (e) => {
     if (e.target.name === 'image') {
@@ -42,20 +27,25 @@ export default function WhatsAppScheduler() {
   const uploadImageToCloudinary = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', config.UPLOAD_PRESET);
+    formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
     formData.append('folder', 'whatsapp_schedule');
 
     try {
       const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${config.CLOUD_NAME}/image/upload`,
+        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
         { method: 'POST', body: formData }
       );
 
-      if (!response.ok) throw new Error('Upload failed');
-      return (await response.json()).secure_url;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Upload failed');
+      }
+
+      const data = await response.json();
+      return data.secure_url;
     } catch (error) {
       console.error('Upload error:', error);
-      throw error;
+      throw new Error(`Cloudinary upload failed: ${error.message}`);
     }
   };
 
@@ -64,30 +54,44 @@ export default function WhatsAppScheduler() {
     setUploading(true);
     setError('');
 
-    if (!form.image) {
-      setError('Please select an image');
-      setUploading(false);
-      return;
-    }
-
     try {
-      const imageUrl = await uploadImageToCloudinary(form.image);
+      // Validate required fields
+      if (!form.image) throw new Error('Please select an image');
+      if (!form.phone) throw new Error('Phone number is required');
       
-      const response = await fetch('https://whats-app-chat-bot-server.vercel.app/sendtemplate', {
+      // Format phone number (ensure it starts with +)
+      const formattedPhone = form.phone.startsWith('+') ? form.phone : `+${form.phone}`;
+
+      // Upload image to Cloudinary
+      const imageUrl = await uploadImageToCloudinary(form.image);
+      console.log('Image uploaded to:', imageUrl);
+
+      // Prepare payload (only user data - no tokens)
+      const payload = {
+        name: form.name,
+        phone: formattedPhone,
+        dayOfWeek: form.dayOfWeek,
+        greeting: form.greeting,
+        image: imageUrl
+      };
+
+      // Send to backend
+      const response = await fetch('https://whats-app-chat-bot-server.vercel.app/send-template', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, imageUrl, ...config }),
+        body: JSON.stringify(payload),
       });
 
+      const responseData = await response.json();
+      console.log('Server response:', responseData);
+      
       if (!response.ok) {
-        throw new Error(`Failed to schedule: ${response.statusText}`);
+        throw new Error(responseData.message || `Request failed with status ${response.status}`);
       }
 
-      const data = await response.json();
       alert('Message scheduled successfully!');
-      console.log('Server response:', data);
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Scheduling error:', err);
       setError(err.message || 'Failed to schedule message');
     } finally {
       setUploading(false);
@@ -96,28 +100,13 @@ export default function WhatsAppScheduler() {
 
   return (
     <div className="max-w-xl mx-auto p-4 bg-white shadow-lg rounded-xl">
-      <h2 className="text-xl font-bold mb-4">WhatsApp Config</h2>
-      <input
-        type="text"
-        name="WA_TOKEN"
-        placeholder="WA_TOKEN"
-        value={config.WA_TOKEN}
-        onChange={handleConfigChange}
-        className="w-full mb-2 p-2 border rounded"
-        required
-      />
-      <input
-        type="text"
-        name="PHONE_ID"
-        placeholder="PHONE_ID"
-        value={config.PHONE_ID}
-        onChange={handleConfigChange}
-        className="w-full mb-4 p-2 border rounded"
-        required
-      />
-
       <h2 className="text-xl font-bold mb-4">Schedule WhatsApp Message</h2>
-      {error && <div className="text-red-500 mb-4">{error}</div>}
+      {error && (
+        <div className="text-red-500 mb-4 p-2 bg-red-50 rounded">
+          Error: {error}
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"
@@ -131,7 +120,7 @@ export default function WhatsAppScheduler() {
         <input
           type="tel"
           name="phone"
-          placeholder="Phone Number (with country code)"
+          placeholder="Phone Number (with country code, e.g. +919876543210)"
           value={form.phone}
           onChange={handleFormChange}
           className="w-full p-2 border rounded"
