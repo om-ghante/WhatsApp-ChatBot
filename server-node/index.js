@@ -1,28 +1,26 @@
 const express = require('express');
-const cors = require('cors');
-
 const app = express();
-const PORT = 5000;
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const AuthRouter = require('./routes/AuthRouter');
 
-// Enable CORS for all routes
-app.use(cors());
+require('dotenv').config();
+require('./database/config');
+const PORT = process.env.PORT || 6173;
 
-// Parse JSON bodies
-app.use(express.json());
-
-// Handle OPTIONS preflight requests
-app.options('/api/message', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'https://whats-app-chat-bot-client.vercel.app');
-  res.setHeader('Access-Control-Allow-Methods', 'POST');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.sendStatus(204);
+app.get('/', (req, res) => {
+    res.send('Server Started');
 });
+
+app.use(bodyParser.json());
+app.use(cors());
 
 app.post('/api/message', (req, res) => {
   console.log('Received from frontend:', req.body.message);
   res.json({ response: 'hello' });
 });
 
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    console.log(`Server is running on ${PORT}`)
+})
