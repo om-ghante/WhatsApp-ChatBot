@@ -170,54 +170,40 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-app.post('/schedule-template', async (req, res) => {
+// NEW: Simplified hello_world template endpoint
+app.post('/send-hello', async (req, res) => {
   try {
-    const { phone, time } = req.body;
-
-    if (!phone || !time) {
-      return res.status(400).json({ error: 'Missing phone or time' });
+    const { phone } = req.body;
+    
+    // Validate inputs
+    if (!phone) {
+      return res.status(400).json({ error: 'Missing phone number' });
     }
+    
+    const url = `https://graph.facebook.com/v22.0/${PHONE_ID}/messages`;
+    const headers = {
+      Authorization: `Bearer ${WA_TOKEN}`,
+      'Content-Type': 'application/json'
+    };
 
-    const now = new Date();
-    const scheduledTime = new Date(time);
-    const delay = scheduledTime - now;
-
-    if (delay < 0) {
-      return res.status(400).json({ error: 'Scheduled time is in the past' });
-    }
-
-    setTimeout(async () => {
-      try {
-        const url = `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`;
-        const headers = {
-          Authorization: `Bearer ${WA_TOKEN}`,
-          'Content-Type': 'application/json'
-        };
-
-        const data = {
-          messaging_product: "whatsapp",
-          to: phone,
-          type: "template",
-          template: {
-            name: "hello_world",
-            language: { code: "en_US" }
-          }
-        };
-
-        await axios.post(url, data, { headers });
-        console.log(`✅ Template sent to ${phone} at ${new Date().toLocaleString()}`);
-      } catch (error) {
-        console.error('❌ Error sending scheduled template:', error.response?.data || error.message);
+    const data = {
+      messaging_product: "whatsapp",
+      to: phone,
+      type: "template",
+      template: {
+        name: "hello_world",
+        language: { code: "en_US" }
       }
-    }, delay);
+    };
 
-    res.json({ 
-      success: true, 
-      message: `Template message scheduled for ${scheduledTime.toLocaleString()}` 
-    });
+    await axios.post(url, data, { headers });
+    res.json({ success: true });
   } catch (error) {
-    console.error('❌ Schedule template error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Send hello error:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: 'Failed to send hello_world template',
+      details: error.response?.data 
+    });
   }
 });
 
