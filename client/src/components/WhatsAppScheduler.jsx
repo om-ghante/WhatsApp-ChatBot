@@ -30,7 +30,7 @@ export default function WhatsAppScheduler() {
     }
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
 
     const reader = new FileReader();
@@ -43,7 +43,17 @@ export default function WhatsAppScheduler() {
       };
 
       try {
-        await axios.post('https://whats-app-chat-bot-lac.vercel.app/send-template', payload);
+        // Add withCredentials option
+        await axios.post(
+          'https://whats-app-chat-bot-lac.vercel.app/send-template', 
+          payload,
+          {
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
         alert('Scheduled message submitted!');
       } catch (error) {
         console.error('Error scheduling message:', error);

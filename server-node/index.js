@@ -9,11 +9,16 @@ const { createCanvas, loadImage } = require("canvas");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Updated CORS configuration
 app.use(cors({
-  origin: process.env.ORIGIN_API,
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  origin: "*",  // Allow all origins for testing
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],  // Added OPTIONS method
   credentials: true,
 }));
+
+// Handle preflight requests
+app.options("*", cors());
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -225,5 +230,11 @@ async function processMedia(buffer, mimeType) {
     return "Error processing media";
   }
 }
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
 
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
