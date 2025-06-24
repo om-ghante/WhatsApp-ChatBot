@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 
 export default function WhatsAppScheduler() {
   const [config, setConfig] = useState({
@@ -31,39 +30,47 @@ export default function WhatsAppScheduler() {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!form.image) {
-    alert('Please select an image.');
-    return;
-  }
+    if (!form.image) {
+      alert('Please select an image.');
+      return;
+    }
 
-  const reader = new FileReader();
-  reader.onloadend = async () => {
-    const imageBase64 = reader.result.split(',')[1];
-    const payload = {
-      ...form,
-      image: imageBase64,
-      ...config,
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const imageBase64 = reader.result.split(',')[1];
+      const payload = {
+        ...form,
+        image: imageBase64,
+        ...config,
+      };
+
+      try {
+        // Using fetch instead of axios with CORS-compatible logic
+        const response = await fetch('https://whats-app-chat-bot-server.vercel.app/sendtemplate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        alert('Scheduled message submitted!');
+        console.log('Backend response:', data);
+      } catch (error) {
+        console.error('Error scheduling message:', error);
+        alert('Failed to schedule. Check console.');
+      }
     };
 
-    try {
-      const url = 'https://whats-app-chat-bot-server.vercel.app/sendtemplate';
-      const response = await axios.post(url, payload, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      alert('Scheduled message submitted!');
-    } catch (error) {
-      console.error('Error scheduling message:', error);
-      alert('Failed to schedule. Check console.');
-    }
+    reader.readAsDataURL(form.image);
   };
-
-  reader.readAsDataURL(form.image);
-};
-
 
   return (
     <div className="max-w-xl mx-auto p-4 bg-white shadow-lg rounded-xl">

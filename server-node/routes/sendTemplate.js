@@ -4,9 +4,11 @@ const axios = require("axios");
 
 router.post("/", async (req, res) => {
   try {
-    const { WA_TOKEN, PHONE_ID, name, phone, dayOfWeek, greeting, image } = req.body;
+    const { WA_TOKEN, PHONE_ID, name, phone, dayOfWeek, greeting } = req.body;
 
-    if (!WA_TOKEN || !PHONE_ID || !name || !phone || !image) {
+    console.log("success");
+    // Removed `image` check from validation
+    if (!WA_TOKEN || !PHONE_ID || !name || !phone) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -25,15 +27,6 @@ router.post("/", async (req, res) => {
         language: { code: "en_US" },
         components: [
           {
-            type: "header",
-            parameters: [
-              {
-                type: "image",
-                image: { link: `data:image/jpeg;base64,${image}` },
-              },
-            ],
-          },
-          {
             type: "body",
             parameters: [
               { type: "text", text: name },
@@ -48,8 +41,15 @@ router.post("/", async (req, res) => {
     const response = await axios.post(url, data, { headers });
     res.json({ success: true, data: response.data });
   } catch (error) {
-    console.error("Template send error:", error.response?.data || error.message);
-    res.status(500).json({ error: "Failed to send template", details: error.response?.data || error.message });
+    console.error("Template send error:", {
+      message: error.message,
+      response: error.response?.data,
+      stack: error.stack,
+    });
+    res.status(500).json({
+      error: "Failed to send template",
+      details: error.response?.data || error.message,
+    });
   }
 });
 
