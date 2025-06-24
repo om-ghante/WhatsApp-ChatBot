@@ -2,20 +2,20 @@ const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-require('dotenv').config();
 
 const app = express();
 
-app.use(cors({
-  origin: 'https://whats-app-chat-bot-client.vercel.app', // <- your frontend
-  methods: ['POST'],
-  allowedHeaders: ['Content-Type']
-}));
-
+app.use(cors());
 app.use(bodyParser.json());
 
-app.get('/', (req, res) => {
-  res.send('Server Started');
+app.options('/api/message', (req, res) => {
+  res.set({
+    'Access-Control-Allow-Origin': 'https://whats-app-chat-bot-client.vercel.app',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Credentials': 'true'
+  });
+  return res.status(200).end();
 });
 
 app.post('/api/message', (req, res) => {
@@ -28,4 +28,4 @@ app.post('/api/message', (req, res) => {
   }
 });
 
-module.exports = serverless(app); // ✅ Important for Vercel!
+module.exports = serverless(app);
