@@ -1,15 +1,8 @@
 {
   "name": "server-node",
   "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "start": "nodemon index.js",
-    "dev": "nodemon index.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "main": "api/message.js",
+  "type": "commonjs",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.10.0",
