@@ -1,22 +1,19 @@
 const express = require('express');
-const serverless = require('serverless-http');
-const cors = require('cors');
+const app = express();
 const bodyParser = require('body-parser');
+const cors = require('cors');
+
 require('dotenv').config();
 
-const app = express();
-
-app.use(cors({
-  origin: 'https://whats-app-chat-bot-client.vercel.app', // <- your frontend
-  methods: ['POST'],
-  allowedHeaders: ['Content-Type']
-}));
-
-app.use(bodyParser.json());
+const PORT = process.env.PORT || 6173;
 
 app.get('/', (req, res) => {
-  res.send('Server Started');
+    res.send('Server Started');
 });
+
+app.use(bodyParser.json());
+app.use(cors());
+
 
 app.post('/api/message', (req, res) => {
   const { message } = req.body;
@@ -28,4 +25,6 @@ app.post('/api/message', (req, res) => {
   }
 });
 
-module.exports = serverless(app); // ✅ Important for Vercel!
+app.listen(PORT, () => {
+    console.log(`Server is running on ${PORT}`)
+})
