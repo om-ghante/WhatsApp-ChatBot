@@ -9,6 +9,21 @@ const { createCanvas, loadImage } = require('canvas');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ✅ Allowed origins
+const allowedOrigins = ['http://localhost:5173', 'https://your-frontend.vercel.app'];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like curl, mobile apps)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  }
+}));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
 const GEN_API = process.env.GEN_API;
 const NAME = process.env.OWNER_NAME || "Om Ghante";
 const BOT_NAME = process.env.BOT_NAME || "Om Ghante's ChatBot";
@@ -20,67 +35,10 @@ const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 let conversationHistory = [];
 const MAX_HISTORY = 20;
 
-// ✅ Global CORS middleware for all routes including OPTIONS
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*'); // or specify frontend URL
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-});
-
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
-// Utility: Detect language
-function detectLanguage(text) {
-  const marathiChars = /[\u0900-\u097F]/;
-  return marathiChars.test(text) ? 'marathi' : 'english';
-}
-
-// Utility: Handle PDF/Image/Audio processing
-async function processMedia(buffer, mimeType) {
-  try {
-    if (mimeType === 'application/pdf') {
-      const data = await pdf(buffer);
-      return `PDF Content: ${data.text}`;
-    }
-
-    if (mimeType.startsWith('image/')) {
-      const img = await loadImage(buffer);
-      const canvas = createCanvas(img.width, img.height);
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const imageData = canvas.toDataURL('image/jpeg');
-
-      const result = await model.generateContent([
-        { text: "Describe this image in detail" },
-        { inlineData: { data: imageData.split(',')[1], mimeType: 'image/jpeg' } }
-      ]);
-
-      return result.response.text();
-    }
-
-    if (mimeType.startsWith('audio/')) {
-      const result = await model.generateContent([
-        { text: "Transcribe this audio:" },
-        { inlineData: { data: buffer.toString('base64'), mimeType } }
-      ]);
-
-      return `Audio Transcription: ${result.response.text()}`;
-    }
-
-    return "Unsupported file format";
-  } catch (error) {
-    console.error('Media processing error:', error);
-    return "Error processing media";
-  }
-}
-
-// 🟢 Root health check
+// Health check
 app.get('/', (req, res) => res.send('WhatsApp AI Bot is alive'));
 
-// 🔄 WhatsApp webhook verification
+// Webhook verification
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -93,7 +51,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// 📩 WhatsApp Webhook POST
+// WhatsApp webhook
 app.post('/webhook', async (req, res) => {
   try {
     const entry = req.body.entry?.[0];
@@ -179,20 +137,8 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// ✅ CORS-safe OPTIONS route for preflight
-app.options('/send-template', (req, res) => {
-  res.set({
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  });
-  return res.sendStatus(200);
-});
-
-// ✉️ API to Send WhatsApp Template from Frontend
+// Template send API
 app.post('/send-template', async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-
   const { WA_TOKEN, PHONE_ID, name, phone, dayOfWeek, greeting, image } = req.body;
 
   const url = `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`;
@@ -239,5 +185,50 @@ app.post('/send-template', async (req, res) => {
   }
 });
 
-// Start the server
+// Detect language utility
+function detectLanguage(text) {
+  const marathiChars = /[\u0900-\u097F]/;
+  return marathiChars.test(text) ? 'marathi' : 'english';
+}
+
+// Process PDF/Image/Audio
+async function processMedia(buffer, mimeType) {
+  try {
+    if (mimeType === 'application/pdf') {
+      const data = await pdf(buffer);
+      return `PDF Content: ${data.text}`;
+    }
+
+    if (mimeType.startsWith('image/')) {
+      const img = await loadImage(buffer);
+      const canvas = createCanvas(img.width, img.height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = canvas.toDataURL('image/jpeg');
+
+      const result = await model.generateContent([
+        { text: "Describe this image in detail" },
+        { inlineData: { data: imageData.split(',')[1], mimeType: 'image/jpeg' } }
+      ]);
+
+      return result.response.text();
+    }
+
+    if (mimeType.startsWith('audio/')) {
+      const result = await model.generateContent([
+        { text: "Transcribe this audio:" },
+        { inlineData: { data: buffer.toString('base64'), mimeType } }
+      ]);
+
+      return `Audio Transcription: ${result.response.text()}`;
+    }
+
+    return "Unsupported file format";
+  } catch (error) {
+    console.error('Media processing error:', error);
+    return "Error processing media";
+  }
+}
+
+// Start server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
