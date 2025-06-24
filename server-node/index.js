@@ -7,9 +7,7 @@ const pdf = require('pdf-parse');
 const { createCanvas, loadImage } = require('canvas');
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+const PORT = process.env.PORT || 3000;
 
 const GEN_API = process.env.GEN_API;
 const NAME = process.env.OWNER_NAME || "Om Ghante";
@@ -22,13 +20,25 @@ const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 let conversationHistory = [];
 const MAX_HISTORY = 20;
 
-// Language detection
+// ✅ Global CORS middleware for all routes including OPTIONS
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*'); // or specify frontend URL
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Utility: Detect language
 function detectLanguage(text) {
   const marathiChars = /[\u0900-\u097F]/;
   return marathiChars.test(text) ? 'marathi' : 'english';
 }
 
-// Media processor
+// Utility: Handle PDF/Image/Audio processing
 async function processMedia(buffer, mimeType) {
   try {
     if (mimeType === 'application/pdf') {
@@ -67,10 +77,10 @@ async function processMedia(buffer, mimeType) {
   }
 }
 
-// Health check
-app.get('/', (req, res) => res.send('WhatsApp AI Bot'));
+// 🟢 Root health check
+app.get('/', (req, res) => res.send('WhatsApp AI Bot is alive'));
 
-// WhatsApp webhook (unchanged)
+// 🔄 WhatsApp webhook verification
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -83,7 +93,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// WhatsApp message handler
+// 📩 WhatsApp Webhook POST
 app.post('/webhook', async (req, res) => {
   try {
     const entry = req.body.entry?.[0];
@@ -118,8 +128,9 @@ app.post('/webhook', async (req, res) => {
       userInput = message.text.body;
     }
 
-    const languagePrompt = userLanguage === 'marathi' ? 
-      " (Respond in Marathi)" : " (Respond in English)";
+    const languagePrompt = userLanguage === 'marathi'
+      ? " (Respond in Marathi)"
+      : " (Respond in English)";
 
     conversationHistory.push({ role: "user", parts: [{ text: userInput }] });
     if (conversationHistory.length > MAX_HISTORY) {
@@ -150,7 +161,7 @@ app.post('/webhook', async (req, res) => {
 
     const sendURL = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
     const headers = {
-      'Authorization': `Bearer ${WA_TOKEN}`,
+      Authorization: `Bearer ${WA_TOKEN}`,
       'Content-Type': 'application/json'
     };
     const messageBody = {
@@ -168,8 +179,20 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// Send template message API for React frontend
+// ✅ CORS-safe OPTIONS route for preflight
+app.options('/send-template', (req, res) => {
+  res.set({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  });
+  return res.sendStatus(200);
+});
+
+// ✉️ API to Send WhatsApp Template from Frontend
 app.post('/send-template', async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   const { WA_TOKEN, PHONE_ID, name, phone, dayOfWeek, greeting, image } = req.body;
 
   const url = `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`;
@@ -216,6 +239,5 @@ app.post('/send-template', async (req, res) => {
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
+// Start the server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
