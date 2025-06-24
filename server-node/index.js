@@ -12,7 +12,7 @@ app.use(express.json());
 
 // Handle OPTIONS preflight requests
 app.options('/api/message', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', 'https://whats-app-chat-bot-client.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.sendStatus(204);
