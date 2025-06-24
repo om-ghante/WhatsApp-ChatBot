@@ -10,12 +10,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ✅ Allowed origins
-const allowedOrigins = ['http://localhost:5173', 'https://your-frontend.vercel.app'];
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://whats-app-chat-bot-44ud.vercel.app' // your frontend
+];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like curl, mobile apps)
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // Allow curl/postman
     if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   }
@@ -35,10 +37,10 @@ const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 let conversationHistory = [];
 const MAX_HISTORY = 20;
 
-// Health check
+// 🔹 Health check
 app.get('/', (req, res) => res.send('WhatsApp AI Bot is alive'));
 
-// Webhook verification
+// 🔹 Webhook verification
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -51,7 +53,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// WhatsApp webhook
+// 🔹 WhatsApp Webhook POST
 app.post('/webhook', async (req, res) => {
   try {
     const entry = req.body.entry?.[0];
@@ -137,7 +139,7 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// Template send API
+// 🔹 Send template API
 app.post('/send-template', async (req, res) => {
   const { WA_TOKEN, PHONE_ID, name, phone, dayOfWeek, greeting, image } = req.body;
 
@@ -185,13 +187,13 @@ app.post('/send-template', async (req, res) => {
   }
 });
 
-// Detect language utility
+// 🔹 Detect language helper
 function detectLanguage(text) {
   const marathiChars = /[\u0900-\u097F]/;
   return marathiChars.test(text) ? 'marathi' : 'english';
 }
 
-// Process PDF/Image/Audio
+// 🔹 Process PDF/Image/Audio helper
 async function processMedia(buffer, mimeType) {
   try {
     if (mimeType === 'application/pdf') {
@@ -230,5 +232,5 @@ async function processMedia(buffer, mimeType) {
   }
 }
 
-// Start server
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// 🔹 Start the server
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
