@@ -22,8 +22,7 @@ let conversationHistory = [];
 
 // CORS Setup - Fixed origin validation
 const allowedOrigins = [
-  "https://whats-app-chat-bot-44ud.vercel.app",
-  "http://localhost:3000"
+  "https://whats-app-chat-bot-client.vercel.app"
 ];
 
 app.use(cors({

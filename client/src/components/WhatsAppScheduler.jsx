@@ -44,7 +44,7 @@ export default function WhatsAppScheduler() {
 
       try {
         await axios.post(
-          'https://whats-app-chat-bot-lac.vercel.app/send-template', 
+          'https://whats-app-chat-bot-server.vercel.app/send-template', 
           payload,
           {
             withCredentials: true,
