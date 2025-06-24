@@ -31,41 +31,39 @@ export default function WhatsAppScheduler() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const imageBase64 = reader.result.split(',')[1];
-      const payload = {
-        ...form,
-        image: imageBase64,
-        ...config,
-      };
+  if (!form.image) {
+    alert('Please select an image.');
+    return;
+  }
 
-      try {
-        await axios.post(
-          'https://whats-app-chat-bot-server.vercel.app/send-template', 
-          payload,
-          {
-            withCredentials: true,
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        alert('Scheduled message submitted!');
-      } catch (error) {
-        console.error('Error scheduling message:', error);
-        alert('Failed to schedule. Check console.');
-      }
+  const reader = new FileReader();
+  reader.onloadend = async () => {
+    const imageBase64 = reader.result.split(',')[1];
+    const payload = {
+      ...form,
+      image: imageBase64,
+      ...config,
     };
 
-    if (form.image) {
-      reader.readAsDataURL(form.image);
-    } else {
-      alert('Please select an image.');
+    try {
+      const url = 'https://whats-app-chat-bot-server.vercel.app/send-template/';
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      alert('Scheduled message submitted!');
+    } catch (error) {
+      console.error('Error scheduling message:', error);
+      alert('Failed to schedule. Check console.');
     }
   };
+
+  reader.readAsDataURL(form.image);
+};
+
 
   return (
     <div className="max-w-xl mx-auto p-4 bg-white shadow-lg rounded-xl">
