@@ -48,7 +48,7 @@ export default function WhatsAppScheduler() {
     };
 
     try {
-      const url = 'https://whats-app-chat-bot-server.vercel.app/send-template/';
+      const url = 'https://whats-app-chat-bot-server.vercel.app/send-template';
       const response = await axios.post(url, payload, {
         headers: {
           'Content-Type': 'application/json',
