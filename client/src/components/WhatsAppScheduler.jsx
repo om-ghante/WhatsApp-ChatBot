@@ -43,7 +43,7 @@ export default function WhatsAppScheduler() {
       };
 
       try {
-        await axios.post('http://localhost:3000/send-template', payload);
+        await axios.post('https://whats-app-chat-bot-lac.vercel.app/send-template', payload);
         alert('Scheduled message submitted!');
       } catch (error) {
         console.error('Error scheduling message:', error);
