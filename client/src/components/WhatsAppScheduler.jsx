@@ -38,7 +38,7 @@ export default function WhatsAppScheduler() {
       };
 
       // Send to backend
-      const response = await fetch('https://whats-app-chat-bot-server.vercel.app/schedule-hello', {
+      const response = await fetch('https://whats-app-chat-bot-server.vercel.app/schedule-template', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
