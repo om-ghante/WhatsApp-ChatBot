@@ -20,7 +20,7 @@ const genAI = new GoogleGenerativeAI(GEN_API);
 const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 let conversationHistory = [];
 
-// CORS Setup
+// CORS Setup - Fixed origin validation
 const allowedOrigins = [
   "https://whats-app-chat-bot-44ud.vercel.app",
   "http://localhost:3000"
@@ -28,17 +28,20 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
     }
   },
   methods: ["GET", "POST", "OPTIONS"],
-  credentials: true
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-app.options("*", cors());
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -102,6 +105,68 @@ app.get("/webhook", (req, res) => {
     res.status(200).send(challenge);
   } else {
     res.sendStatus(403);
+  }
+});
+
+// Add explicit OPTIONS handler for /send-template
+app.options("/send-template", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", allowedOrigins);
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.status(200).send();
+});
+
+app.post("/send-template", async (req, res) => {
+  try {
+    const { WA_TOKEN, PHONE_ID, name, phone, dayOfWeek, greeting, image } = req.body;
+
+    if (!WA_TOKEN || !PHONE_ID || !name || !phone || !image) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const url = `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`;
+    const headers = {
+      Authorization: `Bearer ${WA_TOKEN}`,
+      "Content-Type": "application/json",
+    };
+
+    const data = {
+      messaging_product: "whatsapp",
+      to: phone,
+      type: "template",
+      template: {
+        name: "firsttemplate",
+        language: { code: "en_US" },
+        components: [
+          {
+            type: "header",
+            parameters: [
+              {
+                type: "image",
+                image: { link: `data:image/jpeg;base64,${image}` },
+              },
+            ],
+          },
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: name },
+              { type: "text", text: dayOfWeek },
+              { type: "text", text: greeting },
+            ],
+          },
+        ],
+      },
+    };
+
+    const response = await axios.post(url, data, { headers });
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    console.error("Template send error:", error.response?.data || error.message);
+    res.status(500).json({ 
+      error: "Failed to send template",
+      details: error.response?.data || error.message 
+    });
   }
 });
 
@@ -191,60 +256,6 @@ app.post("/webhook", async (req, res) => {
     res.status(500).json({ 
       error: "AI processing failed",
       details: error.message 
-    });
-  }
-});
-
-app.post("/send-template", async (req, res) => {
-  try {
-    const { WA_TOKEN, PHONE_ID, name, phone, dayOfWeek, greeting, image } = req.body;
-
-    if (!WA_TOKEN || !PHONE_ID || !name || !phone || !image) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const url = `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`;
-    const headers = {
-      Authorization: `Bearer ${WA_TOKEN}`,
-      "Content-Type": "application/json",
-    };
-
-    const data = {
-      messaging_product: "whatsapp",
-      to: phone,
-      type: "template",
-      template: {
-        name: "firsttemplate",
-        language: { code: "en_US" },
-        components: [
-          {
-            type: "header",
-            parameters: [
-              {
-                type: "image",
-                image: { link: `data:image/jpeg;base64,${image}` },
-              },
-            ],
-          },
-          {
-            type: "body",
-            parameters: [
-              { type: "text", text: name },
-              { type: "text", text: dayOfWeek },
-              { type: "text", text: greeting },
-            ],
-          },
-        ],
-      },
-    };
-
-    const response = await axios.post(url, data, { headers });
-    res.json({ success: true, data: response.data });
-  } catch (error) {
-    console.error("Template send error:", error.response?.data || error.message);
-    res.status(500).json({ 
-      error: "Failed to send template",
-      details: error.response?.data || error.message 
     });
   }
 });

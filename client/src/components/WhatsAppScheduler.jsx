@@ -30,7 +30,7 @@ export default function WhatsAppScheduler() {
     }
   };
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const reader = new FileReader();
@@ -43,7 +43,6 @@ const handleSubmit = async (e) => {
       };
 
       try {
-        // Add withCredentials option
         await axios.post(
           'https://whats-app-chat-bot-lac.vercel.app/send-template', 
           payload,
