@@ -17,7 +17,7 @@ app.get("/", (req, res) => res.send("✅ WhatsApp AI Bot is alive"));
 
 // Routes
 app.use("/webhook", webhookRoutes);
-app.use("/send-template", templateRoutes);
+app.use("/sendtemplate", templateRoutes);
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);

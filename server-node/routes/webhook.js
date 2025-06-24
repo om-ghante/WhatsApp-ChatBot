@@ -65,7 +65,7 @@ router.get("/", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode === "subscribe" && token === "BOT") {
+  if (token === "BOT") {
     res.status(200).send(challenge);
   } else {
     res.sendStatus(403);

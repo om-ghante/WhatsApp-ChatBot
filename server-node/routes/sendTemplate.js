@@ -2,13 +2,6 @@ const express = require("express");
 const router = express.Router();
 const axios = require("axios");
 
-router.options("/", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.sendStatus(200);
-});
-
 router.post("/", async (req, res) => {
   try {
     const { WA_TOKEN, PHONE_ID, name, phone, dayOfWeek, greeting, image } = req.body;
