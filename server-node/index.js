@@ -7,19 +7,7 @@ const templateRoutes = require("./routes/sendTemplate");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS Setup
-const allowedOrigins = ["https://whats-app-chat-bot-client.vercel.app"];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error("Not allowed by CORS"));
-  },
-  methods: ["GET", "POST", "OPTIONS"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+app.use(cors());
 
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true }));
