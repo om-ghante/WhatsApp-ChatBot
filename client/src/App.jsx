@@ -1,4 +1,4 @@
-// App.jsx
+//App.jsx
 //import WhatsAppScheduler from "./components/WhatsAppScheduler";
 //
 //function App() {
@@ -12,32 +12,51 @@
 //  );
 //}
 //
-//export default App;
+//export default App
 
 
-import React from 'react';
+import { useState } from 'react';
 
 function App() {
-  const sendMessage = async () => {
+  const [response, setResponse] = useState('');
+
+  const handleClick = async () => {
     try {
-      const response = await fetch('https://whats-app-chat-bot-server.vercel.app/api/message', {
+      const res = await fetch('https://whats-app-chat-bot-server.vercel.app/api/message', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ message: 'hi' }),
+        body: JSON.stringify({ message: 'Hello' })
       });
-      
-      const data = await response.json();
-      console.log('Backend response:', data.response);
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setResponse(data.reply);
+      } else {
+        setResponse('Error: ' + data.error);
+      }
     } catch (error) {
-      console.error('Error:', error);
+      console.error(error);
+      setResponse('Network error');
     }
   };
 
   return (
-    <div>
-      <button onClick={sendMessage}>Send Message to Backend</button>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+      <button
+        onClick={handleClick}
+        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+      >
+        Send "Hello"
+      </button>
+
+      {response && (
+        <p className="mt-4 text-xl text-gray-800">
+          {response}
+        </p>
+      )}
     </div>
   );
 }
